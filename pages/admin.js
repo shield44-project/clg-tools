@@ -1,5 +1,5 @@
 // pages/admin.js
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Head from 'next/head';
 
 export default function AdminPage() {
@@ -64,7 +64,7 @@ export default function AdminPage() {
     }
   };
 
-  const fetchIssues = async (password) => {
+  const fetchIssues = useCallback(async (password) => {
     try {
       const response = await fetch(`/api/get-issues?password=${encodeURIComponent(password)}`);
       const data = await response.json();
@@ -76,9 +76,9 @@ export default function AdminPage() {
     } catch (err) {
       console.error('Failed to fetch issues:', err);
     }
-  };
+  }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const savedPassword = localStorage.getItem('admin-password');
     if (!savedPassword) return;
 
@@ -102,11 +102,15 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchIssues]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const timeoutId = setTimeout(() => {
+      loadData();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [loadData]);
 
   const handleLogout = () => {
     setIsAuthenticated(false);

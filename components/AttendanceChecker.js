@@ -1,5 +1,5 @@
 // components/AttendanceChecker.js
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 
 const ATTENDANCE_STORAGE_KEY = 'rvce-attendance-data';
 const MIN_ATTENDANCE = 85;
@@ -26,26 +26,21 @@ function calcSafeSkips(held, attended) {
 }
 
 export default function AttendanceChecker() {
-  const [subjects, setSubjects] = useState([]);
+  const [subjects, setSubjects] = useState(() => {
+    if (typeof window === 'undefined') return [];
+
+    try {
+      const saved = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [showAddForm, setShowAddForm] = useState(false);
   const [newSubject, setNewSubject] = useState({ name: '', held: '', attended: '' });
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({});
   const [formError, setFormError] = useState('');
-
-  // Load from localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
-        if (saved) {
-          setSubjects(JSON.parse(saved));
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
 
   // Persist to localStorage
   const persist = useCallback((data) => {

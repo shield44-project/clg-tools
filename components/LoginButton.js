@@ -2,24 +2,19 @@
 import { useState, useEffect } from 'react';
 
 export default function LoginButton() {
-  // Always start with safe server-side defaults to avoid hydration mismatch.
-  // The real values are loaded from localStorage in a useEffect after mount.
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [username, setUsername] = useState('');
-  const [showModal, setShowModal] = useState(false);
+  const getSavedUsername = () => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('rvce-calculator-username') || '';
+  };
+
+  const [username, setUsername] = useState(() => getSavedUsername());
+  const [showModal, setShowModal] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !localStorage.getItem('rvce-calculator-username');
+  });
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
-
-  // Hydrate from localStorage after first render (client only)
-  useEffect(() => {
-    const saved = localStorage.getItem('rvce-calculator-username');
-    if (saved) {
-      setIsLoggedIn(true);
-      setUsername(saved);
-    } else {
-      setShowModal(true);
-    }
-  }, []);
+  const isLoggedIn = Boolean(username);
 
   // Handle opening modal and scrolling to top
   const handleOpenModal = () => {
@@ -75,7 +70,6 @@ export default function LoginButton() {
     localStorage.setItem('rvce-calculator-username', username);
     localStorage.setItem('rvce-calculator-login-time', new Date().toISOString());
     setUsername(username);
-    setIsLoggedIn(true);
     setShowModal(false);
     setLoginForm({ username: '', password: '' });
     setError('');
@@ -84,7 +78,6 @@ export default function LoginButton() {
   const handleLogout = () => {
     if (confirm('Are you sure you want to logout?')) {
       localStorage.removeItem('rvce-calculator-username');
-      setIsLoggedIn(false);
       setUsername('');
     }
   };

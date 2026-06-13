@@ -86,16 +86,9 @@ export default function Home() {
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </Head>
 
-      {/* Subtle background blobs */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-600/8 rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-orange-500/8 rounded-full blur-[120px]"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-500/5 rounded-full blur-[100px]"></div>
-      </div>
-
       {/* Top navigation bar */}
       <header className="sticky top-0 z-40 w-full">
-        <div className="neumorphic border-b border-gray-800/60">
+        <div className="border-b border-white/10 bg-slate-950/45 backdrop-blur-2xl">
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <div className="flex items-center justify-between h-16 gap-4">
               {/* Brand */}
@@ -116,8 +109,8 @@ export default function Home() {
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
                       activeTab === tab.id
-                        ? 'bg-gradient-to-r from-cyan-600/80 to-teal-600/80 text-white shadow-sm'
-                        : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+                        ? 'border border-cyan-300/25 bg-cyan-300/15 text-white shadow-sm'
+                        : 'text-gray-400 hover:text-gray-200 hover:bg-white/10'
                     }`}
                   >
                     {tab.icon}
@@ -144,14 +137,14 @@ export default function Home() {
               <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
-              2025 Scheme · First Year
+              2025 Scheme · Sem 1-8
             </div>
             <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white mb-3">
               RVCE Grade &{' '}
               <span className="gradient-text-cyan">SGPA Calculator</span>
             </h1>
             <p className="text-gray-400 text-base sm:text-lg max-w-xl mx-auto">
-              Calculate grades and SGPA for the 2025 scheme. Data stays in your browser — no sign-in required.
+              Calculate first-year cycles, enter completed semester SGPAs directly, and average them into CGPA.
             </p>
           </div>
         </div>
@@ -220,13 +213,13 @@ export default function Home() {
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn"
           onClick={(e) => { if (e.target === e.currentTarget) { setShowReportModal(false); setReportError(''); } }}
         >
-          <div className="neumorphic rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate-scaleIn">
+          <div className="glass-panel max-w-md w-full max-h-[90vh] overflow-y-auto animate-scaleIn">
             <div className="p-6">
               <div className="flex justify-between items-center mb-5">
                 <h2 className="text-lg font-bold gradient-text-cyan">Report an Issue</h2>
                 <button
                   onClick={() => { setShowReportModal(false); setReportError(''); setReportSuccess(false); }}
-                  className="text-gray-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-gray-800"
+                  className="text-gray-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10"
                   aria-label="Close modal"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -262,7 +255,7 @@ export default function Home() {
                       id="issueTitle"
                       value={reportForm.title}
                       onChange={(e) => setReportForm({ ...reportForm, title: e.target.value })}
-                      className="w-full px-3 py-2.5 neumorphic-inset rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white text-sm transition-all"
+                      className="glass-input text-sm"
                       placeholder="Brief description of the issue"
                       required
                       maxLength={100}
@@ -277,7 +270,7 @@ export default function Home() {
                       id="issueDescription"
                       value={reportForm.description}
                       onChange={(e) => setReportForm({ ...reportForm, description: e.target.value })}
-                      className="w-full px-3 py-2.5 neumorphic-inset rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white resize-none text-sm transition-all"
+                      className="glass-input min-h-28 resize-none text-sm"
                       placeholder="Please describe the issue in detail..."
                       required
                       rows={4}
@@ -295,7 +288,7 @@ export default function Home() {
                       id="issueEmail"
                       value={reportForm.email}
                       onChange={(e) => setReportForm({ ...reportForm, email: e.target.value })}
-                      className="w-full px-3 py-2.5 neumorphic-inset rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white text-sm transition-all"
+                      className="glass-input text-sm"
                       placeholder="your.email@example.com"
                     />
                   </div>

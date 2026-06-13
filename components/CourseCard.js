@@ -26,17 +26,16 @@ export default function CourseCard({ id, onUpdate, initialCourseData }) {
   // Use ref to store the previous results to avoid infinite loops
   const prevResultsRef = useRef();
 
-  const courseDetails = initialCourseData.courseDetails;
-  
-  // Safety check - should not happen with fixed cycle courses, but prevents runtime errors
-  if (!courseDetails) {
-    return null;
-  }
+  const courseDetails = initialCourseData.courseDetails || null;
   
   // Hack to handle courses like CS222IA which are labeled "Theory+Lab" but categorized as "Lab" in PDF
-  const isEffectivelyIntegrated = courseDetails.type === 'Integrated' || courseDetails.cieMax === 150;
+  const isEffectivelyIntegrated = Boolean(courseDetails && (courseDetails.type === 'Integrated' || courseDetails.cieMax === 150));
 
   const results = useMemo(() => {
+    if (!courseDetails) {
+      return { score: '0.00', grade: 'F', points: 0, isPass: false, totalCie: '0.00' };
+    }
+
     let totalCie = 0;
     let finalScore = 0;
     let passCheckMarks = {};
@@ -125,6 +124,11 @@ export default function CourseCard({ id, onUpdate, initialCourseData }) {
       onUpdate(id, { courseDetails, cieMarks, seeMarks, results });
     }
   }, [id, courseDetails, cieMarks, seeMarks, results, onUpdate]);
+
+  // Safety check - should not happen with fixed cycle courses, but prevents runtime errors
+  if (!courseDetails) {
+    return null;
+  }
 
   const handleCieMarkChange = (e) => {
     const { name, value } = e.target;
