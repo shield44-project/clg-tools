@@ -10,7 +10,7 @@ const InputField = ({ name, label, placeholder, value, onChange }) => (
             placeholder={placeholder}
             value={value || ''}
             onChange={onChange}
-            className="w-full p-3 bg-gray-900/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all duration-300 hover:border-emerald-500/30"
+            className="glass-input text-sm"
         />
     </div>
 );
@@ -184,8 +184,8 @@ export default function DetailedCIECalculator({ courseType, cieMarks, handleMark
 
     // For the Lab part of Integrated courses (pg 31)
     const renderIntegratedLabInputs = () => (
-         <div className='col-span-full p-4 border border-pink-500/30 rounded-xl bg-pink-900/10'>
-            <h3 className="text-xl font-bold text-pink-300 mb-3 flex items-center gap-2">
+         <div className='col-span-full p-4 border border-orange-300/25 rounded-xl bg-orange-300/10'>
+            <h3 className="text-xl font-bold text-orange-200 mb-3 flex items-center gap-2">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M7 2a1 1 0 00-.707 1.707L7 4.414v3.758a1 1 0 01-.293.707l-4 4C.817 14.769 2.156 18 4.828 18h10.343c2.673 0 4.012-3.231 2.122-5.121l-4-4A1 1 0 0113 8.172V4.414l.707-.707A1 1 0 0013 2H7zm2 6.172V4h2v4.172a3 3 0 00.879 2.12l1.027 1.028a4 4 0 00-2.171.102l-.47.156a4 4 0 01-2.53 0l-.563-.187a1.993 1.993 0 00-.114-.035l1.063-1.063A3 3 0 009 8.172z" clipRule="evenodd" />
                 </svg>
@@ -226,7 +226,7 @@ export default function DetailedCIECalculator({ courseType, cieMarks, handleMark
     };
 
     return (
-        <div className="p-5 mt-4 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl border border-gray-700/50">
+        <div className="p-5 mt-4 rounded-xl border border-white/10 bg-white/[0.055] backdrop-blur-xl">
             <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
@@ -235,8 +235,8 @@ export default function DetailedCIECalculator({ courseType, cieMarks, handleMark
             </h3>
             
             {/* Total CIE Input Section */}
-            <div className="mb-6 p-4 bg-gradient-to-r from-pink-900/30 to-teal-900/30 rounded-xl border border-pink-500/30">
-                <h4 className="text-lg font-semibold text-pink-300 mb-3 flex items-center gap-2">
+            <div className="mb-6 p-4 rounded-xl border border-cyan-300/20 bg-cyan-300/10">
+                <h4 className="text-lg font-semibold text-cyan-100 mb-3 flex items-center gap-2">
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
                         <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />

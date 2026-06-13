@@ -1,6 +1,49 @@
 // pages/admin.js
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Fragment, useState, useEffect, useMemo, useCallback } from 'react';
 import Head from 'next/head';
+
+const toFiniteNumber = (value, fallback = 0) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
+const getCourseMarksValue = (course, marksType) => {
+  if (!course) return null;
+
+  if (marksType === 'cie') {
+    return toFiniteNumber(course.results?.totalCie, NaN);
+  }
+
+  if (marksType === 'see') {
+    const directSee = toFiniteNumber(course.results?.see, NaN);
+    if (Number.isFinite(directSee)) return directSee;
+
+    const see = toFiniteNumber(course.seeMarks?.see, NaN);
+    if (Number.isFinite(see)) return see;
+
+    const integratedSee = toFiniteNumber(course.seeMarks?.seeTheory, 0) + toFiniteNumber(course.seeMarks?.seeLab, 0);
+    return integratedSee > 0 ? integratedSee : NaN;
+  }
+
+  if (marksType === 'final') {
+    const score = toFiniteNumber(course.results?.score, NaN);
+    if (Number.isFinite(score)) return score;
+
+    return toFiniteNumber(course.results?.finalScore, NaN);
+  }
+
+  return null;
+};
+
+const formatMarksValue = (value) => {
+  if (!Number.isFinite(value)) return 'N/A';
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+};
+
+const escapeCSVCell = (value) => {
+  const text = value === null || value === undefined ? '' : String(value);
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -324,8 +367,8 @@ export default function AdminPage() {
     let maxCIE = 0;
     
     submission.data.courses.forEach(course => {
-      totalCIE += course.results?.totalCie || 0;
-      maxCIE += course.courseDetails?.cieMax || 0;
+      totalCIE += toFiniteNumber(course.results?.totalCie);
+      maxCIE += toFiniteNumber(course.courseDetails?.cieMax);
     });
     
     return { totalCIE, maxCIE };
@@ -376,15 +419,13 @@ export default function AdminPage() {
     }
 
     try {
-      // Using ip-api.com free API (no key required, 45 requests per minute)
-      // Note: Using HTTP as HTTPS requires paid plan, but data is non-sensitive (just geolocation)
-      const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,regionName,city`);
+      const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`);
       const data = await response.json();
       
-      if (data.status === 'success') {
-        const location = data.city && data.regionName 
-          ? `${data.city}, ${data.regionName}, ${data.country}`
-          : data.country || 'Unknown';
+      if (!data.error) {
+        const location = data.city && data.region
+          ? `${data.city}, ${data.region}, ${data.country_name}`
+          : data.country_name || 'Unknown';
         
         // Cache the result
         setIpLocations(prev => ({ ...prev, [ip]: location }));
@@ -430,7 +471,7 @@ export default function AdminPage() {
         sub.deviceInfo?.browser || 'N/A',
         sub.ipAddress || 'N/A'
       ];
-      csvRows.push(row.join(','));
+      csvRows.push(row.map(escapeCSVCell).join(','));
     });
 
     const csvContent = csvRows.join('\n');
@@ -477,14 +518,8 @@ export default function AdminPage() {
               const course = sub.data?.courses?.find(c => c.courseDetails?.code === courseCode);
               if (!course) return false;
 
-              if (searchMarksType === 'cie') {
-                return course.results?.totalCie === targetMarks;
-              } else if (searchMarksType === 'see') {
-                return course.results?.see === targetMarks;
-              } else if (searchMarksType === 'final') {
-                return Math.abs((course.results?.finalScore || 0) - targetMarks) < 0.01;
-              }
-              return false;
+              const marksValue = getCourseMarksValue(course, searchMarksType);
+              return Number.isFinite(marksValue) && Math.abs(marksValue - targetMarks) < 0.01;
             });
           });
         }
@@ -549,23 +584,31 @@ export default function AdminPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-pink-900 to-gray-900 flex items-center justify-center p-4">
+      <div className="flex min-h-screen items-center justify-center px-4 py-10 text-white">
         <Head>
           <title>Admin Login - RVCE Grade Calculator</title>
         </Head>
 
-        <div className="max-w-md w-full bg-gray-800 rounded-xl shadow-2xl border border-gray-700 p-8">
-          <h1 className="text-3xl font-bold text-white mb-6 text-center">Admin Access</h1>
+        <div className="glass-panel w-full max-w-md p-6 sm:p-8">
+          <div className="mb-7 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl border border-cyan-300/25 bg-cyan-300/10 shadow-lg">
+              <svg className="h-7 w-7 text-cyan-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c1.657 0 3-1.343 3-3V7a3 3 0 10-6 0v1c0 1.657 1.343 3 3 3zm-6 2h12l-1 8H7l-1-8z" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-black tracking-tight text-white">Admin Access</h1>
+            <p className="mt-2 text-sm text-slate-400">Sign in to review submissions, reports, and search filters.</p>
+          </div>
           
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-              <p className="text-red-400 text-sm">{error}</p>
+            <div className="mb-4 rounded-2xl border border-red-400/25 bg-red-500/10 p-3">
+              <p className="text-sm text-red-200">{error}</p>
             </div>
           )}
 
-          <form onSubmit={handleLogin}>
-            <div className="mb-6">
-              <label htmlFor="adminPassword" className="block text-gray-300 text-sm font-medium mb-2">
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label htmlFor="adminPassword" className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
                 Admin Password
               </label>
               <input
@@ -573,8 +616,9 @@ export default function AdminPage() {
                 id="adminPassword"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-white"
+                className="glass-input"
                 placeholder="Enter admin password"
+                autoComplete="current-password"
                 required
               />
             </div>
@@ -582,7 +626,7 @@ export default function AdminPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-4 py-3 bg-gradient-to-r from-pink-500 to-teal-500 hover:from-pink-600 hover:to-teal-600 text-white font-semibold rounded-lg transition-all duration-200 disabled:opacity-50"
+              className="glass-button glass-button-primary w-full"
             >
               {loading ? 'Authenticating...' : 'Login'}
             </button>
@@ -593,83 +637,94 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-pink-900 to-gray-900 text-white p-4 sm:p-8">
+    <div className="min-h-screen px-4 py-5 text-white sm:px-6 sm:py-8">
       <Head>
         <title>Admin Dashboard - RVCE Grade Calculator</title>
       </Head>
 
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
-            <p className="text-gray-400">
-              Submissions: {count} | Issues: {issuesCount} | Storage: {storageType}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={loadData}
-              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded-lg font-medium transition-colors"
-            >
-              Refresh
-            </button>
-            {activeTab === 'submissions' && (
+        <div className="glass-panel mb-6 p-5 sm:p-6">
+          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+            <div>
+              <div className="glass-chip mb-3">Private dashboard</div>
+              <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">Admin Dashboard</h1>
+              <div className="mt-3 flex flex-wrap gap-2 text-sm text-slate-300">
+                <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1">Submissions: {count}</span>
+                <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1">Issues: {issuesCount}</span>
+                <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1">Storage: {storageType}</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
               <button
-                onClick={exportToCSV}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors"
+                onClick={loadData}
+                className="glass-button"
               >
-                Export CSV
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6M5 19a9 9 0 0014-3M19 5a9 9 0 00-14 3" />
+                </svg>
+                Refresh
               </button>
-            )}
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors"
-            >
-              Logout
-            </button>
+              {activeTab === 'submissions' && (
+                <button
+                  onClick={exportToCSV}
+                  className="glass-button"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v12m0 0l4-4m-4 4l-4-4M4 21h16" />
+                  </svg>
+                  Export CSV
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                className="glass-button glass-button-danger"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-6 border-b border-gray-700">
+        <div className="mb-6 flex gap-1 overflow-x-auto rounded-full border border-white/10 bg-white/[0.055] p-1 backdrop-blur-xl">
           <button
             onClick={() => setActiveTab('submissions')}
-            className={`px-6 py-3 font-semibold transition-all ${
+            className={`min-h-10 flex-shrink-0 rounded-full px-5 text-sm font-bold transition-all ${
               activeTab === 'submissions'
-                ? 'text-pink-400 border-b-2 border-pink-400'
-                : 'text-gray-400 hover:text-gray-300'
+                ? 'border border-cyan-300/25 bg-cyan-300/15 text-white'
+                : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'
             }`}
           >
             Submissions ({count})
           </button>
           <button
             onClick={() => setActiveTab('issues')}
-            className={`px-6 py-3 font-semibold transition-all ${
+            className={`min-h-10 flex-shrink-0 rounded-full px-5 text-sm font-bold transition-all ${
               activeTab === 'issues'
-                ? 'text-pink-400 border-b-2 border-pink-400'
-                : 'text-gray-400 hover:text-gray-300'
+                ? 'border border-cyan-300/25 bg-cyan-300/15 text-white'
+                : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'
             }`}
           >
             Issues ({issuesCount})
           </button>
           <button
             onClick={() => setActiveTab('search')}
-            className={`px-6 py-3 font-semibold transition-all ${
+            className={`min-h-10 flex-shrink-0 rounded-full px-5 text-sm font-bold transition-all ${
               activeTab === 'search'
-                ? 'text-pink-400 border-b-2 border-pink-400'
-                : 'text-gray-400 hover:text-gray-300'
+                ? 'border border-cyan-300/25 bg-cyan-300/15 text-white'
+                : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'
             }`}
           >
-            🔍 User Search
+            User Search
           </button>
         </div>
 
         {/* Loading State */}
         {loading && (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
-            <p className="mt-4 text-gray-400">Loading data...</p>
+          <div className="glass-panel py-12 text-center">
+            <div className="inline-block h-12 w-12 animate-spin rounded-full border-2 border-cyan-300/20 border-t-cyan-300"></div>
+            <p className="mt-4 text-slate-400">Loading data...</p>
           </div>
         )}
 
@@ -680,10 +735,10 @@ export default function AdminPage() {
             {submissions.length > 0 && (
               <div className="mb-6 space-y-4">
                 {/* Top CIE Scorers */}
-                <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                <div className="glass-panel overflow-hidden">
                   <button
                     onClick={() => setExpandedTopCIE(!expandedTopCIE)}
-                    className="w-full bg-gradient-to-r from-green-900/40 to-gray-900 px-4 py-3 border-b border-gray-700 hover:from-green-900/60 hover:to-gray-900 transition-colors cursor-pointer"
+                    className="w-full border-b border-white/10 bg-white/[0.055] px-4 py-3 transition-colors hover:bg-white/[0.085]"
                   >
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -695,7 +750,7 @@ export default function AdminPage() {
                         >
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
-                        🏆 Top Scorers - Total CIE Marks
+                        Top Scorers - Total CIE Marks
                         <span className="ml-2 px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">
                           Top {Math.min(10, getTopCIEScorers.length)}
                         </span>
@@ -711,14 +766,14 @@ export default function AdminPage() {
                         {getTopCIEScorers.map((scorer, idx) => {
                           const location = ipLocations[scorer.ipAddress] || 'Loading...';
                           return (
-                            <div key={scorer.originalIndex} className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                            <div key={scorer.originalIndex} className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
                               <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-3">
                                   <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
                                     idx === 0 ? 'bg-yellow-500/20 text-yellow-300' :
                                     idx === 1 ? 'bg-gray-400/20 text-gray-300' :
                                     idx === 2 ? 'bg-orange-600/20 text-orange-400' :
-                                    'bg-pink-500/20 text-pink-300'
+                                    'bg-cyan-500/20 text-cyan-200'
                                   }`}>
                                     {idx + 1}
                                   </div>
@@ -745,7 +800,7 @@ export default function AdminPage() {
                                 </div>
                                 <div className="text-right">
                                   <div className="text-2xl font-bold text-green-400">{scorer.totalCIE}</div>
-                                  <div className="text-xs text-gray-400">out of 750</div>
+                                  <div className="text-xs text-gray-400">out of {scorer.maxCIE || 'N/A'}</div>
                                 </div>
                               </div>
                               {/* Course-wise CIE breakdown */}
@@ -755,7 +810,7 @@ export default function AdminPage() {
                                 </summary>
                                 <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
                                   {scorer.data?.courses?.map((course, courseIdx) => (
-                                    <div key={courseIdx} className="bg-gray-800/50 rounded p-2 text-sm">
+                                    <div key={courseIdx} className="rounded-xl border border-white/10 bg-slate-950/25 p-2 text-sm">
                                       <div className="text-gray-300 font-medium text-xs mb-1">{course.courseDetails?.code}</div>
                                       <div className="flex justify-between items-center">
                                         <span className="text-gray-400 text-xs">{course.courseDetails?.title}</span>
@@ -774,23 +829,23 @@ export default function AdminPage() {
                 </div>
 
                 {/* Top SGPA Scorers */}
-                <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                <div className="glass-panel overflow-hidden">
                   <button
                     onClick={() => setExpandedTopSGPA(!expandedTopSGPA)}
-                    className="w-full bg-gradient-to-r from-pink-900/40 to-gray-900 px-4 py-3 border-b border-gray-700 hover:from-pink-900/60 hover:to-gray-900 transition-colors cursor-pointer"
+                    className="w-full border-b border-white/10 bg-white/[0.055] px-4 py-3 transition-colors hover:bg-white/[0.085]"
                   >
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                         <svg 
-                          className={`w-5 h-5 text-pink-400 transform transition-transform duration-200 ${expandedTopSGPA ? 'rotate-90' : ''}`}
+                          className={`w-5 h-5 text-cyan-300 transform transition-transform duration-200 ${expandedTopSGPA ? 'rotate-90' : ''}`}
                           fill="none" 
                           stroke="currentColor" 
                           viewBox="0 0 24 24"
                         >
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
-                        🏆 Top Scorers - SGPA
-                        <span className="ml-2 px-2 py-1 bg-pink-500/20 text-pink-300 rounded-full text-sm">
+                        Top Scorers - SGPA
+                        <span className="ml-2 px-2 py-1 bg-cyan-500/20 text-cyan-200 rounded-full text-sm">
                           Top {Math.min(10, getTopSGPAScorers.length)}
                         </span>
                       </h3>
@@ -805,14 +860,14 @@ export default function AdminPage() {
                         {getTopSGPAScorers.map((scorer, idx) => {
                           const location = ipLocations[scorer.ipAddress] || 'Loading...';
                           return (
-                            <div key={scorer.originalIndex} className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                            <div key={scorer.originalIndex} className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
                               <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-3">
                                   <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
                                     idx === 0 ? 'bg-yellow-500/20 text-yellow-300' :
                                     idx === 1 ? 'bg-gray-400/20 text-gray-300' :
                                     idx === 2 ? 'bg-orange-600/20 text-orange-400' :
-                                    'bg-pink-500/20 text-pink-300'
+                                    'bg-cyan-500/20 text-cyan-200'
                                   }`}>
                                     {idx + 1}
                                   </div>
@@ -838,7 +893,7 @@ export default function AdminPage() {
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <div className="text-2xl font-bold text-pink-400">{scorer.sgpa}</div>
+                                  <div className="text-2xl font-bold text-cyan-200">{scorer.sgpa}</div>
                                   <div className="text-xs text-gray-400">SGPA</div>
                                 </div>
                               </div>
@@ -848,54 +903,57 @@ export default function AdminPage() {
                                   View detailed scores ({scorer.data?.courses?.length || 0} courses)
                                 </summary>
                                 <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                                  {scorer.data?.courses?.map((course, courseIdx) => (
-                                    <div key={courseIdx} className="bg-gray-800/50 rounded p-3 text-sm border border-gray-700">
-                                      <div className="text-gray-300 font-medium text-xs mb-2">{course.courseDetails?.code}</div>
-                                      <div className="text-gray-400 text-xs mb-2">{course.courseDetails?.title}</div>
-                                      
-                                      {/* Marks breakdown */}
-                                      <div className="space-y-1 mb-2">
-                                        {course.results?.totalCie !== undefined && (
-                                          <div className="flex justify-between text-xs">
-                                            <span className="text-gray-400">CIE Marks:</span>
-                                            <span className="text-green-300 font-semibold">
-                                              {course.results.totalCie}/{course.courseDetails?.cieMax || 'N/A'}
-                                            </span>
-                                          </div>
-                                        )}
-                                        {course.results?.see !== undefined && (
-                                          <div className="flex justify-between text-xs">
-                                            <span className="text-gray-400">SEE Marks:</span>
-                                            <span className="text-teal-300 font-semibold">
-                                              {course.results.see}/{course.courseDetails?.seeMax || 'N/A'}
-                                            </span>
-                                          </div>
-                                        )}
-                                        {course.results?.finalScore !== undefined && (
-                                          <div className="flex justify-between text-xs">
-                                            <span className="text-gray-400">Final Score:</span>
-                                            <span className="text-white font-semibold">
-                                              {course.results.finalScore.toFixed(2)}%
-                                            </span>
-                                          </div>
-                                        )}
+                                  {scorer.data?.courses?.map((course, courseIdx) => {
+                                    const seeValue = getCourseMarksValue(course, 'see');
+                                    const finalValue = getCourseMarksValue(course, 'final');
+
+                                    return (
+                                      <div key={courseIdx} className="rounded-xl border border-white/10 bg-slate-950/25 p-3 text-sm">
+                                        <div className="text-gray-300 font-medium text-xs mb-2">{course.courseDetails?.code}</div>
+                                        <div className="text-gray-400 text-xs mb-2">{course.courseDetails?.title}</div>
+
+                                        <div className="space-y-1 mb-2">
+                                          {course.results?.totalCie !== undefined && (
+                                            <div className="flex justify-between text-xs">
+                                              <span className="text-gray-400">CIE Marks:</span>
+                                              <span className="text-green-300 font-semibold">
+                                                {course.results.totalCie}/{course.courseDetails?.cieMax || 'N/A'}
+                                              </span>
+                                            </div>
+                                          )}
+                                          {Number.isFinite(seeValue) && (
+                                            <div className="flex justify-between text-xs">
+                                              <span className="text-gray-400">SEE Marks:</span>
+                                              <span className="text-teal-300 font-semibold">
+                                                {formatMarksValue(seeValue)}/{course.courseDetails?.seeMax || 'N/A'}
+                                              </span>
+                                            </div>
+                                          )}
+                                          {Number.isFinite(finalValue) && (
+                                            <div className="flex justify-between text-xs">
+                                              <span className="text-gray-400">Final Score:</span>
+                                              <span className="text-white font-semibold">
+                                                {formatMarksValue(finalValue)}%
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <div className="flex justify-between items-center pt-2 border-t border-white/10">
+                                          <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                            course.results?.grade === 'O' ? 'bg-green-500/20 text-green-300' :
+                                            course.results?.grade === 'A+' ? 'bg-teal-500/20 text-teal-300' :
+                                            course.results?.grade === 'A' ? 'bg-cyan-500/20 text-cyan-200' :
+                                            course.results?.grade === 'F' ? 'bg-red-500/20 text-red-300' :
+                                            'bg-yellow-500/20 text-yellow-300'
+                                          }`}>
+                                            {course.results?.grade || 'N/A'}
+                                          </span>
+                                          <span className="text-cyan-200 font-semibold">{course.results?.points || 0} pts</span>
+                                        </div>
                                       </div>
-                                      
-                                      {/* Grade and points */}
-                                      <div className="flex justify-between items-center pt-2 border-t border-gray-700">
-                                        <span className={`px-2 py-1 rounded text-xs font-bold ${
-                                          course.results?.grade === 'O' ? 'bg-green-500/20 text-green-300' :
-                                          course.results?.grade === 'A+' ? 'bg-teal-500/20 text-teal-300' :
-                                          course.results?.grade === 'A' ? 'bg-pink-500/20 text-pink-300' :
-                                          course.results?.grade === 'F' ? 'bg-red-500/20 text-red-300' :
-                                          'bg-yellow-500/20 text-yellow-300'
-                                        }`}>
-                                          {course.results?.grade || 'N/A'}
-                                        </span>
-                                        <span className="text-pink-300 font-semibold">{course.results?.points || 0} pts</span>
-                                      </div>
-                                    </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               </details>
                             </div>
@@ -915,7 +973,7 @@ export default function AdminPage() {
                   type="checkbox"
                   checked={sortByIP}
                   onChange={(e) => setSortByIP(e.target.checked)}
-                  className="w-5 h-5 rounded bg-gray-700 border-gray-600 text-pink-500 focus:ring-2 focus:ring-pink-500"
+                className="h-5 w-5 rounded border-white/20 bg-white/10 text-cyan-500 focus:ring-2 focus:ring-cyan-400"
                 />
                 <span className="text-gray-300 font-medium">Group by IP Address</span>
               </label>
@@ -930,7 +988,7 @@ export default function AdminPage() {
                       });
                       setExpandedIPs(newExpandedState);
                     }}
-                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded transition-colors"
+                    className="glass-button glass-button-compact"
                   >
                     Expand All
                   </button>
@@ -943,7 +1001,7 @@ export default function AdminPage() {
                       });
                       setExpandedIPs(newExpandedState);
                     }}
-                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded transition-colors"
+                    className="glass-button glass-button-compact"
                   >
                     Collapse All
                   </button>
@@ -952,7 +1010,7 @@ export default function AdminPage() {
             </div>
 
             {submissions.length === 0 ? (
-              <div className="text-center py-12 bg-gray-800 rounded-xl">
+              <div className="glass-panel py-12 text-center">
                 <p className="text-gray-400 text-lg">No submissions yet</p>
               </div>
             ) : sortByIP ? (
@@ -965,8 +1023,8 @@ export default function AdminPage() {
                   const location = ipLocations[ip] || 'Loading...';
                   
                   return (
-                    <div key={ip} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-                      <div className="w-full bg-gray-900 px-4 py-3 border-b border-gray-700">
+                    <div key={ip} className="glass-panel overflow-hidden">
+                      <div className="w-full border-b border-white/10 bg-white/[0.055] px-4 py-3">
                         <div className="flex items-center justify-between gap-4">
                           <button
                             onClick={() => toggleIPExpansion(ip)}
@@ -974,23 +1032,23 @@ export default function AdminPage() {
                           >
                             <h3 className="text-lg font-semibold text-white flex items-center gap-2 flex-wrap">
                               <svg 
-                                className={`w-5 h-5 text-pink-400 transform transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+                                className={`w-5 h-5 text-cyan-300 transform transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
                                 fill="none" 
                                 stroke="currentColor" 
                                 viewBox="0 0 24 24"
                               >
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                               </svg>
-                              <svg className="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-5 h-5 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                               </svg>
-                              IP: <span className="font-mono text-pink-300">{ip}</span>
+                              IP: <span className="mono-soft font-mono text-cyan-100">{ip}</span>
                               {location !== 'Loading...' && location !== 'Unknown' && (
                                 <span className="text-sm text-gray-400 font-normal">
-                                  📍 {location}
+                                  {location}
                                 </span>
                               )}
-                              <span className="ml-2 px-2 py-1 bg-pink-500/20 text-pink-300 rounded-full text-sm">
+                              <span className="ml-2 px-2 py-1 bg-cyan-500/20 text-cyan-200 rounded-full text-sm">
                                 {ipSubmissions.length} submission{ipSubmissions.length !== 1 ? 's' : ''}
                               </span>
                               {cCycleCount > 0 && (
@@ -1010,14 +1068,14 @@ export default function AdminPage() {
                               <>
                                 <button
                                   onClick={() => handleDeleteIPGroup(ip)}
-                                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded transition-colors"
+                                  className="glass-button glass-button-danger glass-button-compact"
                                   title="Confirm deletion"
                                 >
                                   Confirm
                                 </button>
                                 <button
                                   onClick={cancelDeleteIPGroup}
-                                  className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded transition-colors"
+                                  className="glass-button glass-button-compact"
                                 >
                                   Cancel
                                 </button>
@@ -1025,7 +1083,7 @@ export default function AdminPage() {
                             ) : (
                               <button
                                 onClick={() => handleDeleteIPGroup(ip)}
-                                className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/40 text-red-400 text-sm font-medium rounded transition-colors border border-red-600/30"
+                                className="glass-button glass-button-danger glass-button-compact"
                                 title={`Delete all ${ipSubmissions.length} submission(s) from this IP`}
                               >
                                 Delete IP Group
@@ -1041,7 +1099,7 @@ export default function AdminPage() {
               </div>
             ) : (
               // Regular view
-              <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+              <div className="glass-table">
                 {renderSubmissionsTable(submissions.map((sub, idx) => ({ ...sub, originalIndex: idx })))}
               </div>
             )}
@@ -1052,13 +1110,13 @@ export default function AdminPage() {
         {!loading && activeTab === 'issues' && (
           <>
             {issues.length === 0 ? (
-              <div className="text-center py-12 bg-gray-800 rounded-xl">
+              <div className="glass-panel py-12 text-center">
                 <p className="text-gray-400 text-lg">No issues reported yet</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {issues.map((issue, index) => (
-                  <div key={issue.id || index} className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+                  <div key={issue.id || index} className="glass-panel p-5 sm:p-6">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
                         <h3 className="text-xl font-semibold text-white mb-2">{issue.title}</h3>
@@ -1095,13 +1153,13 @@ export default function AdminPage() {
                       </div>
                       <button
                         onClick={() => handleDeleteIssue(index)}
-                        className="ml-4 px-3 py-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 text-sm rounded transition-colors border border-red-600/30"
+                        className="glass-button glass-button-danger glass-button-compact ml-4"
                         title="Delete issue"
                       >
                         Delete
                       </button>
                     </div>
-                    <div className="bg-gray-900/50 rounded-lg p-4">
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/25 p-4">
                       <p className="text-gray-300 whitespace-pre-wrap">{issue.description}</p>
                     </div>
                     {issue.userAgent && (
@@ -1121,9 +1179,9 @@ export default function AdminPage() {
         {!loading && activeTab === 'search' && (
           <div className="space-y-6">
             {/* Search Filters Card */}
-            <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <div className="glass-panel p-5 sm:p-6">
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                <svg className="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 Advanced User Search & Filters
@@ -1131,9 +1189,11 @@ export default function AdminPage() {
 
               <div className="space-y-6">
                 {/* Marks Search Section */}
-                <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
                   <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <span className="text-green-400">📊</span>
+                    <svg className="h-5 w-5 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-6" />
+                    </svg>
                     Search by Marks (Multi-Subject Support)
                   </h3>
                   <div className="space-y-4">
@@ -1146,7 +1206,7 @@ export default function AdminPage() {
                         <select
                           value={searchCourse}
                           onChange={(e) => setSearchCourse(e.target.value)}
-                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+                          className="glass-select text-sm"
                         >
                           <option value="">-- Select subject 1 --</option>
                           {allCourses.map(course => (
@@ -1163,7 +1223,7 @@ export default function AdminPage() {
                         <select
                           value={searchCourse2}
                           onChange={(e) => setSearchCourse2(e.target.value)}
-                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+                          className="glass-select text-sm"
                         >
                           <option value="">-- Select subject 2 --</option>
                           {allCourses.map(course => (
@@ -1180,7 +1240,7 @@ export default function AdminPage() {
                         <select
                           value={searchCourse3}
                           onChange={(e) => setSearchCourse3(e.target.value)}
-                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+                          className="glass-select text-sm"
                         >
                           <option value="">-- Select subject 3 --</option>
                           {allCourses.map(course => (
@@ -1200,7 +1260,7 @@ export default function AdminPage() {
                         <select
                           value={searchMarksType}
                           onChange={(e) => setSearchMarksType(e.target.value)}
-                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+                          className="glass-select text-sm"
                         >
                           <option value="cie">CIE Marks</option>
                           <option value="see">SEE Marks</option>
@@ -1216,20 +1276,22 @@ export default function AdminPage() {
                           value={searchMarks}
                           onChange={(e) => setSearchMarks(e.target.value)}
                           placeholder="Enter marks (e.g., 92)"
-                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+                          className="glass-input text-sm"
                         />
                       </div>
                     </div>
                     <p className="text-sm text-gray-400 italic">
-                      💡 Tip: Select 1-3 subjects to search. If marks value is provided, users with matching marks in ANY of the selected subjects will be shown.
+                      Tip: Select 1-3 subjects to search. If marks value is provided, users with matching marks in any selected subject will be shown.
                     </p>
                   </div>
                 </div>
 
                 {/* Additional Filters Section */}
-                <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
                   <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <span className="text-teal-400">🎯</span>
+                    <svg className="h-5 w-5 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v18m9-9H3m15.364-6.364L5.636 18.364m0-12.728 12.728 12.728" />
+                    </svg>
                     Additional Filters
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1237,11 +1299,11 @@ export default function AdminPage() {
                       <label className="block text-gray-300 text-sm font-medium mb-2">
                         Cycle Type
                       </label>
-                      <select
-                        value={filterCycle}
-                        onChange={(e) => setFilterCycle(e.target.value)}
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
-                      >
+                        <select
+                          value={filterCycle}
+                          onChange={(e) => setFilterCycle(e.target.value)}
+                          className="glass-select text-sm"
+                        >
                         <option value="">All Cycles</option>
                         <option value="C">C Cycle (Chemistry)</option>
                         <option value="P">P Cycle (Physics)</option>
@@ -1251,11 +1313,11 @@ export default function AdminPage() {
                       <label className="block text-gray-300 text-sm font-medium mb-2">
                         Device Type
                       </label>
-                      <select
-                        value={filterDeviceType}
-                        onChange={(e) => setFilterDeviceType(e.target.value)}
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
-                      >
+                        <select
+                          value={filterDeviceType}
+                          onChange={(e) => setFilterDeviceType(e.target.value)}
+                          className="glass-select text-sm"
+                        >
                         <option value="">All Devices</option>
                         <option value="Desktop">Desktop</option>
                         <option value="Mobile">Mobile</option>
@@ -1266,11 +1328,11 @@ export default function AdminPage() {
                       <label className="block text-gray-300 text-sm font-medium mb-2">
                         Operating System
                       </label>
-                      <select
-                        value={filterOS}
-                        onChange={(e) => setFilterOS(e.target.value)}
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
-                      >
+                        <select
+                          value={filterOS}
+                          onChange={(e) => setFilterOS(e.target.value)}
+                          className="glass-select text-sm"
+                        >
                         <option value="">All OS</option>
                         <option value="Windows">Windows</option>
                         <option value="macOS">macOS</option>
@@ -1283,9 +1345,11 @@ export default function AdminPage() {
                 </div>
 
                 {/* Date Range Filter */}
-                <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
                   <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <span className="text-yellow-400">📅</span>
+                    <svg className="h-5 w-5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
+                    </svg>
                     Date Range
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1297,7 +1361,7 @@ export default function AdminPage() {
                         type="date"
                         value={filterDateFrom}
                         onChange={(e) => setFilterDateFrom(e.target.value)}
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+                        className="glass-input text-sm"
                       />
                     </div>
                     <div>
@@ -1308,25 +1372,25 @@ export default function AdminPage() {
                         type="date"
                         value={filterDateTo}
                         onChange={(e) => setFilterDateTo(e.target.value)}
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+                        className="glass-input text-sm"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-4 justify-end">
+                <div className="flex flex-col gap-3 justify-end sm:flex-row">
                   <button
                     onClick={clearFilters}
-                    className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors"
+                    className="glass-button"
                   >
                     Clear All Filters
                   </button>
                   <button
                     onClick={performSearch}
-                    className="px-6 py-3 bg-gradient-to-r from-pink-500 to-teal-500 hover:from-pink-600 hover:to-teal-600 text-white font-semibold rounded-lg transition-all duration-200"
+                    className="glass-button glass-button-primary"
                   >
-                    🔍 Search Users
+                    Search Users
                   </button>
                 </div>
               </div>
@@ -1334,8 +1398,8 @@ export default function AdminPage() {
 
             {/* Search Results */}
             {searchResults.length > 0 && (
-              <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-                <div className="bg-gradient-to-r from-green-900/40 to-gray-900 px-6 py-4 border-b border-gray-700">
+              <div className="glass-table">
+                <div className="border-b border-white/10 bg-white/[0.055] px-6 py-4">
                   <h3 className="text-xl font-semibold text-white flex items-center gap-2">
                     <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -1348,7 +1412,7 @@ export default function AdminPage() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-900">
+                    <thead>
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">#</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Username</th>
@@ -1364,23 +1428,14 @@ export default function AdminPage() {
                         )}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-700">
+                    <tbody className="divide-y divide-white/10">
                       {searchResults.map((result, idx) => {
                         const location = ipLocations[result.ipAddress] || 'Loading...';
                         const course = searchCourse ? result.data?.courses?.find(c => c.courseDetails?.code === searchCourse) : null;
-                        let marksValue = 'N/A';
-                        if (course) {
-                          if (searchMarksType === 'cie') {
-                            marksValue = course.results?.totalCie || 'N/A';
-                          } else if (searchMarksType === 'see') {
-                            marksValue = course.results?.see || 'N/A';
-                          } else if (searchMarksType === 'final') {
-                            marksValue = course.results?.finalScore?.toFixed(2) || 'N/A';
-                          }
-                        }
+                        const marksValue = formatMarksValue(getCourseMarksValue(course, searchMarksType));
                         
                         return (
-                          <tr key={idx} className="hover:bg-gray-700/50 transition-colors">
+                          <tr key={idx}>
                             <td className="px-4 py-3 text-gray-300">{idx + 1}</td>
                             <td className="px-4 py-3">
                               <div className="text-white font-medium">{result.username || 'Guest'}</div>
@@ -1391,7 +1446,7 @@ export default function AdminPage() {
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              <div className="font-mono text-pink-300 text-sm">{result.ipAddress || 'Unknown'}</div>
+                              <div className="mono-soft font-mono text-cyan-100 text-sm">{result.ipAddress || 'Unknown'}</div>
                               {location !== 'Loading...' && location !== 'Unknown' && (
                                 <div className="text-xs text-gray-400">{location}</div>
                               )}
@@ -1427,7 +1482,7 @@ export default function AdminPage() {
 
             {/* No Results Message */}
             {searchPerformed && searchResults.length === 0 && (
-              <div className="text-center py-12 bg-gray-800 rounded-xl border border-gray-700">
+              <div className="glass-panel py-12 text-center">
                 <svg className="w-16 h-16 text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -1446,7 +1501,7 @@ export default function AdminPage() {
     return (
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-900">
+          <thead>
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                 Details
@@ -1479,16 +1534,16 @@ export default function AdminPage() {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-700">
+          <tbody className="divide-y divide-white/10">
             {submissionsToRender.map((submission, idx) => {
               const index = submission.originalIndex !== undefined ? submission.originalIndex : idx;
               return (
-                <>
-                  <tr key={index} className="hover:bg-gray-700/50 transition-colors">
+                <Fragment key={index}>
+                  <tr>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <button
                         onClick={() => toggleRowExpansion(index)}
-                        className="text-pink-400 hover:text-pink-300 focus:outline-none"
+                        className="text-cyan-300 hover:text-cyan-100 focus:outline-none"
                         title="View course details"
                       >
                         <svg
@@ -1523,14 +1578,14 @@ export default function AdminPage() {
                     <td className="px-4 py-3 whitespace-nowrap">
                       {submission.cycle ? (
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getCycleBadgeColor(submission.cycle)}`}>
-                          {getCycleName(submission.cycle).split(' (')[0]} {/* Display short form like "C Cycle" or "P Cycle" */}
+                          {getCycleName(submission.cycle).split(' (')[0]}
                         </span>
                       ) : (
                         <span className="text-gray-500 text-xs">N/A</span>
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="px-2 py-1 bg-pink-500/20 text-pink-300 rounded-full text-sm font-semibold">
+                      <span className="px-2 py-1 bg-cyan-500/20 text-cyan-100 rounded-full text-sm font-semibold">
                         {submission.data?.sgpa || 'N/A'}
                       </span>
                     </td>
@@ -1566,13 +1621,13 @@ export default function AdminPage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleDeleteSubmission(index)}
-                            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                                className="glass-button glass-button-danger glass-button-compact"
                           >
                             Confirm
                           </button>
                           <button
                             onClick={cancelDelete}
-                            className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded transition-colors"
+                            className="glass-button glass-button-compact"
                           >
                             Cancel
                           </button>
@@ -1580,7 +1635,7 @@ export default function AdminPage() {
                       ) : (
                         <button
                           onClick={() => handleDeleteSubmission(index)}
-                          className="px-3 py-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 text-xs rounded transition-colors border border-red-600/30"
+                          className="glass-button glass-button-danger glass-button-compact"
                           title="Delete submission"
                         >
                           Delete
@@ -1589,54 +1644,54 @@ export default function AdminPage() {
                     </td>
                   </tr>
                   {expandedRow === index && (
-                    <tr key={`${index}-detail`}>
-                      <td colSpan={sortByIP ? "8" : "9"} className="px-4 py-4 bg-gray-900/50">
+                    <tr>
+                      <td colSpan={sortByIP ? "8" : "9"} className="px-4 py-4 bg-slate-950/25">
                         <div className="space-y-4">
                           {/* Complete Submission Information */}
-                          <div className="bg-gray-800/70 rounded-lg p-4 border border-gray-700">
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
                             <h4 className="text-lg font-semibold text-white mb-3">Complete Submission Data</h4>
                             
                             {/* User Information */}
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                              <div className="bg-gray-900/50 rounded p-3">
+                              <div className="rounded-xl border border-white/10 bg-slate-950/25 p-3">
                                 <p className="text-xs text-gray-400 mb-1">Username</p>
                                 <p className="text-sm text-white font-semibold">{submission.username || 'Guest'}</p>
                               </div>
-                              <div className="bg-gray-900/50 rounded p-3">
+                              <div className="rounded-xl border border-white/10 bg-slate-950/25 p-3">
                                 <p className="text-xs text-gray-400 mb-1">Cycle</p>
                                 <p className="text-sm text-white font-semibold">
                                   {submission.cycle ? getCycleName(submission.cycle) : 'N/A'}
                                 </p>
                               </div>
-                              <div className="bg-gray-900/50 rounded p-3">
+                              <div className="rounded-xl border border-white/10 bg-slate-950/25 p-3">
                                 <p className="text-xs text-gray-400 mb-1">Login Time</p>
                                 <p className="text-sm text-white font-semibold">{submission.loginTime ? formatDate(submission.loginTime) : 'N/A'}</p>
                               </div>
-                              <div className="bg-gray-900/50 rounded p-3">
+                              <div className="rounded-xl border border-white/10 bg-slate-950/25 p-3">
                                 <p className="text-xs text-gray-400 mb-1">Submission Time</p>
                                 <p className="text-sm text-white font-semibold">{formatDate(submission.timestamp)}</p>
                               </div>
-                              <div className="bg-gray-900/50 rounded p-3">
+                              <div className="rounded-xl border border-white/10 bg-slate-950/25 p-3">
                                 <p className="text-xs text-gray-400 mb-1">IP Address</p>
                                 <p className="text-sm text-white font-semibold font-mono">{submission.ipAddress || 'N/A'}</p>
                               </div>
-                              <div className="bg-gray-900/50 rounded p-3">
+                              <div className="rounded-xl border border-white/10 bg-slate-950/25 p-3">
                                 <p className="text-xs text-gray-400 mb-1">Operating System</p>
                                 <p className="text-sm text-white font-semibold">{submission.deviceInfo?.os || 'Unknown'}</p>
                               </div>
-                              <div className="bg-gray-900/50 rounded p-3">
+                              <div className="rounded-xl border border-white/10 bg-slate-950/25 p-3">
                                 <p className="text-xs text-gray-400 mb-1">Browser</p>
                                 <p className="text-sm text-white font-semibold">{submission.deviceInfo?.browser || 'Unknown'}</p>
                               </div>
-                              <div className="bg-gray-900/50 rounded p-3">
+                              <div className="rounded-xl border border-white/10 bg-slate-950/25 p-3">
                                 <p className="text-xs text-gray-400 mb-1">Device Type</p>
                                 <p className="text-sm text-white font-semibold">{submission.deviceInfo?.device || 'Unknown'}</p>
                               </div>
-                              <div className="bg-gray-900/50 rounded p-3">
+                              <div className="rounded-xl border border-white/10 bg-slate-950/25 p-3">
                                 <p className="text-xs text-gray-400 mb-1">SGPA</p>
-                                <p className="text-sm text-white font-semibold text-pink-400 text-lg">{submission.data?.sgpa || 'N/A'}</p>
+                                <p className="text-lg font-semibold text-cyan-100">{submission.data?.sgpa || 'N/A'}</p>
                               </div>
-                              <div className="bg-gray-900/50 rounded p-3">
+                              <div className="rounded-xl border border-white/10 bg-slate-950/25 p-3">
                                 <p className="text-xs text-gray-400 mb-1">Total Courses</p>
                                 <p className="text-sm text-white font-semibold">{submission.data?.courses?.length || 0}</p>
                               </div>
@@ -1644,7 +1699,7 @@ export default function AdminPage() {
 
                             {/* User Agent String */}
                             {submission.userAgent && (
-                              <div className="bg-gray-900/50 rounded p-3 mt-3">
+                              <div className="rounded-xl border border-white/10 bg-slate-950/25 p-3 mt-3">
                                 <p className="text-xs text-gray-400 mb-1">User Agent</p>
                                 <p className="text-xs text-gray-300 font-mono break-all">{submission.userAgent}</p>
                               </div>
@@ -1659,10 +1714,11 @@ export default function AdminPage() {
                             {submission.data.courses.map((course, courseIdx) => {
                               if (!course.courseDetails) return null;
                               const hasCIE = course.results?.totalCie > 0;
-                              const hasSEE = course.results?.see !== undefined && course.results?.see !== null;
+                              const seeValue = getCourseMarksValue(course, 'see');
+                              const hasSEE = Number.isFinite(seeValue);
                               
                               return (
-                                <div key={courseIdx} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                                <div key={courseIdx} className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
                                   <div className="flex justify-between items-start mb-3">
                                     <div>
                                       <h5 className="text-white font-medium">
@@ -1676,7 +1732,7 @@ export default function AdminPage() {
                                       <span className={`px-3 py-1 rounded-full text-sm font-bold ${
                                         course.results.grade === 'O' ? 'bg-green-500/20 text-green-300' :
                                         course.results.grade === 'A+' ? 'bg-teal-500/20 text-teal-300' :
-                                        course.results.grade === 'A' ? 'bg-pink-500/20 text-pink-300' :
+                                        course.results.grade === 'A' ? 'bg-cyan-500/20 text-cyan-200' :
                                         course.results.grade === 'F' ? 'bg-red-500/20 text-red-300' :
                                         'bg-yellow-500/20 text-yellow-300'
                                       }`}>
@@ -1686,7 +1742,7 @@ export default function AdminPage() {
                                   </div>
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                                     {hasCIE && (
-                                      <div className="bg-gray-900/50 rounded p-2">
+                                      <div className="rounded-xl border border-white/10 bg-slate-950/25 p-2">
                                         <p className="text-gray-400 text-xs mb-1">CIE Marks</p>
                                         <p className="text-white font-semibold">
                                           {course.results.totalCie}/{course.courseDetails.cieMax}
@@ -1697,24 +1753,24 @@ export default function AdminPage() {
                                       </div>
                                     )}
                                     {hasSEE && (
-                                      <div className="bg-gray-900/50 rounded p-2">
+                                      <div className="rounded-xl border border-white/10 bg-slate-950/25 p-2">
                                         <p className="text-gray-400 text-xs mb-1">SEE Marks</p>
                                         <p className="text-white font-semibold">
-                                          {course.results.see}/{course.courseDetails.seeMax}
+                                          {formatMarksValue(seeValue)}/{course.courseDetails.seeMax}
                                           <span className="text-gray-400 text-xs ml-1">
-                                            ({((course.results.see / course.courseDetails.seeMax) * 100).toFixed(1)}%)
+                                            ({((seeValue / course.courseDetails.seeMax) * 100).toFixed(1)}%)
                                           </span>
                                         </p>
                                       </div>
                                     )}
-                                    {course.results?.finalScore !== undefined && (
-                                      <div className="bg-gray-900/50 rounded p-2">
+                                    {(course.results?.score !== undefined || course.results?.finalScore !== undefined) && (
+                                      <div className="rounded-xl border border-white/10 bg-slate-950/25 p-2">
                                         <p className="text-gray-400 text-xs mb-1">Final Score</p>
-                                        <p className="text-white font-semibold">{course.results.finalScore.toFixed(2)}/100</p>
+                                        <p className="text-white font-semibold">{formatMarksValue(toFiniteNumber(course.results?.score ?? course.results?.finalScore, NaN))}/100</p>
                                       </div>
                                     )}
                                     {course.results?.isPass !== undefined && (
-                                      <div className="bg-gray-900/50 rounded p-2">
+                                      <div className="rounded-xl border border-white/10 bg-slate-950/25 p-2">
                                         <p className="text-gray-400 text-xs mb-1">Status</p>
                                         <p className={`font-semibold ${course.results.isPass ? 'text-green-400' : 'text-red-400'}`}>
                                           {course.results.isPass ? 'Pass' : 'Fail'}
@@ -1735,7 +1791,7 @@ export default function AdminPage() {
                                             .trim();
                                           
                                           return (
-                                            <div key={key} className="bg-gray-900/70 px-3 py-2 rounded border border-gray-700">
+                                            <div key={key} className="rounded-xl border border-white/10 bg-slate-950/25 px-3 py-2">
                                               <p className="text-xs text-gray-400 mb-1">{formattedKey}</p>
                                               <p className="text-sm text-white font-semibold">{value || 'N/A'}</p>
                                             </div>
@@ -1758,7 +1814,7 @@ export default function AdminPage() {
                                             .trim();
                                           
                                           return (
-                                            <div key={key} className="bg-gray-900/70 px-3 py-2 rounded border border-gray-700">
+                                            <div key={key} className="rounded-xl border border-white/10 bg-slate-950/25 px-3 py-2">
                                               <p className="text-xs text-gray-400 mb-1">{formattedKey}</p>
                                               <p className="text-sm text-white font-semibold">{value || 'N/A'}</p>
                                             </div>
@@ -1777,7 +1833,7 @@ export default function AdminPage() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               );
             })}
           </tbody>

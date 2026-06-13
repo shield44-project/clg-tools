@@ -28,13 +28,19 @@
   --shadow-glow-teal: 0 0 30px rgba(20, 184, 166, 0.5);
   --shadow-glow-gold: 0 0 30px rgba(251, 191, 36, 0.5);
   --shadow-glow-rainbow: 0 0 40px rgba(6, 182, 212, 0.4), 0 0 60px rgba(249, 115, 22, 0.3);
+  --app-bg: #07111d;
+  --app-fg: #f8fafc;
+  --glass-focus: 0 0 0 3px rgba(34, 211, 238, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 * {
+  box-sizing: border-box;
   scroll-behavior: smooth;
 }
 
 body {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background:
@@ -44,6 +50,22 @@ body {
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.28);
+  color: white;
 }
 
 body::before {
@@ -514,8 +536,9 @@ body::after {
   padding: 0.75rem 0.9rem;
   color: white;
   outline: none;
+  min-height: 44px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
 .glass-input::placeholder {
@@ -525,7 +548,140 @@ body::after {
 .glass-input:focus {
   border-color: rgba(103, 232, 249, 0.56);
   background: rgba(2, 6, 23, 0.28);
-  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  box-shadow: var(--glass-focus);
+}
+
+.glass-select {
+  width: 100%;
+  min-height: 44px;
+  appearance: none;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background:
+    linear-gradient(45deg, transparent 50%, rgba(203, 213, 225, 0.78) 50%) calc(100% - 18px) 50% / 7px 7px no-repeat,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.055)),
+    rgba(2, 6, 23, 0.34);
+  color: white;
+  outline: none;
+  padding: 0.75rem 2.4rem 0.75rem 0.9rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.glass-select:focus {
+  border-color: rgba(103, 232, 249, 0.56);
+  box-shadow: var(--glass-focus);
+}
+
+.glass-select option {
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.glass-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.09);
+  color: #e2e8f0;
+  padding: 0.62rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 750;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 12px 30px rgba(2, 6, 23, 0.18);
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, color 180ms ease, opacity 180ms ease;
+}
+
+.glass-button:hover {
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.14);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.glass-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.glass-button-primary {
+  border-color: rgba(103, 232, 249, 0.34);
+  background:
+    linear-gradient(135deg, rgba(6, 182, 212, 0.88), rgba(20, 184, 166, 0.76)),
+    rgba(255, 255, 255, 0.12);
+  color: white;
+  box-shadow: 0 18px 45px rgba(8, 145, 178, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.glass-button-primary:hover {
+  border-color: rgba(165, 243, 252, 0.54);
+  background:
+    linear-gradient(135deg, rgba(34, 211, 238, 0.92), rgba(45, 212, 191, 0.8)),
+    rgba(255, 255, 255, 0.14);
+}
+
+.glass-button-danger {
+  border-color: rgba(248, 113, 113, 0.32);
+  background: rgba(239, 68, 68, 0.13);
+  color: #fecaca;
+}
+
+.glass-button-danger:hover {
+  border-color: rgba(252, 165, 165, 0.5);
+  background: rgba(239, 68, 68, 0.2);
+  color: white;
+}
+
+.glass-button-compact {
+  min-height: 34px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.glass-table {
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.46);
+  box-shadow: var(--glass-shadow-soft);
+  backdrop-filter: blur(24px) saturate(145%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+}
+
+.glass-table table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.glass-table thead {
+  background: rgba(2, 6, 23, 0.42);
+}
+
+.glass-table tbody tr {
+  transition: background 160ms ease;
+}
+
+.glass-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.mono-soft {
+  font-variant-ligatures: none;
+  word-break: break-word;
+}
+
+.safe-truncate {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .neumorphic {

@@ -88,12 +88,12 @@ export default function Home() {
 
       {/* Top navigation bar */}
       <header className="sticky top-0 z-40 w-full">
-        <div className="border-b border-white/10 bg-slate-950/45 backdrop-blur-2xl">
+        <div className="border-b border-white/10 bg-slate-950/50 shadow-[0_10px_40px_rgba(2,6,23,0.22)] backdrop-blur-2xl">
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
-            <div className="flex items-center justify-between h-16 gap-4">
+            <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 py-2 sm:flex-nowrap sm:gap-4">
               {/* Brand */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500 to-orange-500 flex items-center justify-center">
+              <div className="flex flex-shrink-0 items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-cyan-500/90 to-orange-400/85 shadow-lg shadow-cyan-950/20">
                   <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z" />
                   </svg>
@@ -102,15 +102,15 @@ export default function Home() {
               </div>
 
               {/* Tab navigation */}
-              <nav className="flex items-center gap-1 flex-1 justify-center">
+              <nav className="order-3 flex w-full min-w-0 items-center justify-start gap-1 overflow-x-auto rounded-full border border-white/10 bg-white/[0.055] p-1 sm:order-none sm:w-auto sm:flex-1 sm:justify-center sm:overflow-visible">
                 {NAV_TABS.map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
+                    className={`flex min-h-9 flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold transition-all duration-200 ${
                       activeTab === tab.id
                         ? 'border border-cyan-300/25 bg-cyan-300/15 text-white shadow-sm'
-                        : 'text-gray-400 hover:text-gray-200 hover:bg-white/10'
+                        : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'
                     }`}
                   >
                     {tab.icon}

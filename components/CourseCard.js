@@ -257,7 +257,7 @@ export default function CourseCard({ id, onUpdate, initialCourseData }) {
                 <ResultDisplay label="Status" value={results.isPass ? 'Pass ✓' : 'Fail ✗'} color={results.isPass ? 'text-emerald-400' : 'text-red-400'} />
                 <ResultDisplay label="Total CIE" value={results.totalCie || '0.00'} color="text-emerald-400" />
                 <ResultDisplay label="Final Score" value={results.score + '%'} color="text-teal-400" />
-                <ResultDisplay label="Grade" value={results.grade} color="text-pink-400" />
+                <ResultDisplay label="Grade" value={results.grade} color="text-cyan-200" />
                 <ResultDisplay label="Points" value={results.points} color="text-amber-400" />
               </div>
             </div>
@@ -367,10 +367,10 @@ const RequiredSEEIntegratedDisplay = ({ cieMarks, courseDetails, seeMarks, resul
     if (!requiredSEE) return null;
     
     return (
-        <div className="p-5 mt-4 relative overflow-hidden rounded-xl border border-pink-500/30">
-            <div className="absolute inset-0 bg-gradient-to-r from-pink-900/30 to-teal-900/30"></div>
+        <div className="p-5 mt-4 relative overflow-hidden rounded-xl glass-effect border border-cyan-300/20">
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-orange-500/5"></div>
             <div className="relative">
-                <h3 className="text-lg font-bold text-pink-300 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-bold gradient-text-cyan mb-4 flex items-center gap-2">
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                     </svg>
@@ -390,7 +390,7 @@ const RequiredSEEIntegratedDisplay = ({ cieMarks, courseDetails, seeMarks, resul
                     {Object.entries(requiredSEE).map(([grade, info]) => {
                         const cardClassName = `p-4 rounded-lg backdrop-blur-sm transition-all duration-300 hover:scale-105 ${
                             info.achievable 
-                                ? 'bg-gray-800/50 border border-green-500/30' 
+                                ? 'glass-effect border border-emerald-500/30'
                                 : 'bg-red-900/20 border border-red-500/30'
                         }`;
                         
@@ -418,8 +418,8 @@ const RequiredSEEIntegratedDisplay = ({ cieMarks, courseDetails, seeMarks, resul
                                 
                                 {/* Lab Required */}
                                 <div className="mb-2">
-                                    <p className="text-xs text-pink-400 mb-1">Lab</p>
-                                    <p className={`font-semibold text-sm ${info.achievable ? 'text-pink-300' : 'text-red-300'}`}>
+                                    <p className="text-xs text-orange-300 mb-1">Lab</p>
+                                    <p className={`font-semibold text-sm ${info.achievable ? 'text-orange-200' : 'text-red-300'}`}>
                                         {info.requiredLab} / {info.labMax}
                                     </p>
                                 </div>

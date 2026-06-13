@@ -128,12 +128,14 @@ export default function SgpaCalculator() {
   const [semesterSgpas, setSemesterSgpas] = useState(() => loadSemesterSgpas());
 
   const currentCalculatedSgpa = useMemo(() => Number(calculateSGPA(courses)) || 0, [courses]);
-  const savedCycleSgpas = readSavedCycleSgpas();
 
-  const cycleSgpas = useMemo(() => ({
-    C: selectedCycle === 'C' ? currentCalculatedSgpa : savedCycleSgpas.C,
-    P: selectedCycle === 'P' ? currentCalculatedSgpa : savedCycleSgpas.P,
-  }), [currentCalculatedSgpa, savedCycleSgpas, selectedCycle]);
+  const cycleSgpas = useMemo(() => {
+    const saved = readSavedCycleSgpas();
+    return {
+      C: selectedCycle === 'C' ? currentCalculatedSgpa : saved.C,
+      P: selectedCycle === 'P' ? currentCalculatedSgpa : saved.P,
+    };
+  }, [currentCalculatedSgpa, selectedCycle]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
